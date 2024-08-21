@@ -5,8 +5,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 export default function App() {
   const [working, setWorking] = useState(true); //일과 여행 구분 위한 boolean 변수
-  const travel = () => setWorking(false);
-  const work = () => setWorking(true);
+
+  useEffect(() => {
+    loadTodos();
+    loadWorkingState();
+  }, [])
+  const travel = async () => {
+    setWorking(false);
+    await saveWorkingState(false)
+  }
+  const work = async () => {
+    setWorking(true);
+    await saveWorkingState(true)
+  }
 
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState(null); // 수정할 todo의 id를 저장
@@ -37,10 +48,6 @@ export default function App() {
     setText('');
     await saveTodos(newTodos);
   }
-
-  useEffect(() => {
-    loadTodos();
-  }, [])
 
   const loadTodos = async () => {
     try {
@@ -78,6 +85,25 @@ export default function App() {
     setText(todoToEdit.text); // 수정할 텍스트를 입력창에 표시
     setEditingId(id); // 수정 중인 todo의 id 저장
   }
+
+  const saveWorkingState = async (isWorking) => {
+    try {
+      await AsyncStorage.setItem('working-state', JSON.stringify(isWorking));
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  const loadWorkingState = async () => {
+    try {
+      const savedState = await AsyncStorage.getItem('working-state');
+      if (savedState !== null) {
+        setWorking(JSON.parse(savedState));
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  };
 
   return (
     <View style={styles.container}>
