@@ -9,20 +9,33 @@ export default function App() {
   const work = () => setWorking(true);
 
   const [text, setText] = useState('');
+  const [editingId, setEditingId] = useState(null); // 수정할 todo의 id를 저장
   const onChangeText = (payload) => setText(payload);
 
   const [todos, setTodos] = useState([])
+
   const addTodo = async () => {
     if (text === '') return;
-    const newTodo = {
-      id: Date.now(),
-      text: text,
-      working: working
+    let newTodos;
+    if (editingId) {
+      // 기존 todo 수정
+      newTodos = todos.map((todo) =>
+        todo.id === editingId ? { ...todo, text } : todo
+      );
+      setEditingId(null); // 수정 완료 후 초기화
+    } else {
+      // 새로운 todo 추가
+      const newTodo = {
+        id: Date.now(),
+        text: text,
+        working: working,
+        completed: false // 완료 여부를 위한 속성 추가
+      }
+      newTodos = [...todos, newTodo];
     }
-    const newTodos = [...todos, newTodo]
-    setTodos(newTodos)
-    setText('')
-    await saveTodos(newTodos)
+    setTodos(newTodos);
+    setText('');
+    await saveTodos(newTodos);
   }
 
   useEffect(() => {
@@ -31,7 +44,7 @@ export default function App() {
 
   const loadTodos = async () => {
     try {
-      const s = await AsyncStorage.getItem('my-todos')
+      const s = await AsyncStorage.getItem('my-todos');
       setTodos(s != null ? JSON.parse(s) : [])
     } catch (e) {
       console.log(e)
@@ -52,6 +65,20 @@ export default function App() {
     saveTodos(newTodos);
   }
 
+  const toggleCompleteTodo = (id) => {
+    const newTodos = todos.map((todo) =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    );
+    setTodos(newTodos);
+    saveTodos(newTodos);
+  }
+
+  const startEditing = (id) => {
+    const todoToEdit = todos.find((todo) => todo.id === id);
+    setText(todoToEdit.text); // 수정할 텍스트를 입력창에 표시
+    setEditingId(id); // 수정 중인 todo의 id 저장
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="auto" />
@@ -66,7 +93,7 @@ export default function App() {
       <View>
         <TextInput
           onSubmitEditing={addTodo}
-          returnKeyLabel="완료"
+          returnKeyLabel={editingId ? "수정" : "완료"}
           onChangeText={onChangeText}
           value={text}
           placeholder={working ? '할일 추가' : '어디로 여행 갈까요?'}
@@ -78,10 +105,25 @@ export default function App() {
         {todos.map((todo) => (
           todo.working === working ? (
             <View style={styles.todo} key={todo.id}>
-              <Text style={styles.todoText}>{todo.text}</Text>
-              <TouchableOpacity onPress={() => deleteTodo(todo.id)}>
-                <Text>❌</Text>
-              </TouchableOpacity>
+              <Text
+                style={{
+                  ...styles.todoText,
+                  color: todo.completed ? 'grey' : 'white', // 완료된 할일의 색상 변경
+                }}
+              >
+                {todo.text}
+              </Text>
+              <View style={styles.todoButtons}>
+                <TouchableOpacity onPress={() => toggleCompleteTodo(todo.id)}>
+                  <Text>{todo.completed ? "✅" : "✔️"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => startEditing(todo.id)}>
+                  <Text>✏️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteTodo(todo.id)}>
+                  <Text>❌</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : null
         ))}
@@ -128,5 +170,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '500',
+  },
+  todoButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: 80,
   },
 });
